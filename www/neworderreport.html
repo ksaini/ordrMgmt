@@ -128,7 +128,7 @@ body {
 
 .panel-body
 {
-    overflow-y: scroll;
+  #  overflow-y: scroll;
 	min-height: 530px;
     height: 100%;
 }
@@ -391,9 +391,10 @@ width:100%;
 			data_dispatched = data;
 			showDispatch(data_dispatched);	
 			getAllOrdr(data_raw);// update orders
-		//	getStockData(171);
+			getRawOrder(171);
 			}
-			
+		else if(p==171)
+			data_raw = data;
 				
 	}
 	
@@ -412,7 +413,7 @@ width:100%;
 	function showRawOrder(data){
     list_for_prsng = []; //everytime clean old list of selected items	
 	getAllOrdr(data);
-	document.getElementById("phead").innerHTML = "<b>Un-Processed Orders</b><i class='fa fa-save pull-right' onclick='toMfg();'></i>";
+	document.getElementById("phead").innerHTML = "<b>Un-Processed Orders</b><i class='fa fa-save pull-right' onclick='toMfg();' style='    font-size: 18px;padding-right: 3px;'></i>";
 	var chat = document.getElementById("chat");
 	var msg = "";
 	var flg =0;
@@ -483,7 +484,7 @@ width:100%;
 	
 	function showCNFOrder(data){
 		initial_stock = {};  // clean any previous initial stock value
-		document.getElementById("phead").innerHTML = "<b>Under Processing</b><i class='fa fa-save pull-right' onclick='reserveIt();'></i>";
+		document.getElementById("phead").innerHTML = "<b>Under Processing</b><i class='fa fa-save pull-right' onclick='reserveIt();' style='    font-size: 18px;padding-right: 3px;'></i>";
 	    var chat = document.getElementById("chat");
 		chat.innerHTML = "";
 		var msg = "";
