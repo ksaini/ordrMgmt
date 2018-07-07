@@ -304,9 +304,9 @@ width:100%;
 </div>	
 <div class="panel-footer stickyfooter icon-bar" id="panel-footer">
                  <div class="icon-bar">			
-					<div id="btn-chat" class="" onclick="highlightIcon(this);viewStock()"><i id="btn-chat_i" class="fa fa-area-chart icon-def"><p class="icontitle">STOCK</p></i></div>
+					<div id="btn-chat" class="" onclick="highlightIcon(this);viewStock();"><i id="btn-chat_i" class="fa fa-area-chart icon-def"><p class="icontitle">STOCK</p></i></div>
 					<div id="btn-back" class="" onclick="highlightIcon(this);showRawOrder(data_raw);"><i id="btn-back_i" class="fa fa-shopping-cart icon-def"><p class="icontitle">RAW</p></i></div>
-					<div id="btn-confirm" class="" onclick="highlightIcon(this);toMfg()"><i id="btn-confirm_i" class="fa fa-shopping-cart icon-def cnf" ><p class="icontitle">CNF</p></i></div>
+					<div id="btn-confirm" class="" onclick="highlightIcon(this);showCNFOrder(data_raw);"><i id="btn-confirm_i" class="fa fa-shopping-cart icon-def cnf" ><p class="icontitle">CNF</p></i></div>
 					<div id="btn-rsvd" class="" onclick="highlightIcon(this);showRSVDOrder(data_raw);"><i id="btn-rsvd_i" class="fa fa-shopping-cart icon-def" style="color:#68C3A3;"><p class="icontitle">RSVD</p></i></div>
 					<div id="btn-mfg" class="" onclick="highlightIcon(this);displayMFG(data_raw);"><i id="btn-mfg_i" class="fa fa-shopping-cart icon-def" style="color:#6BB9F0;"><p class="icontitle">TO MFG</p></i></div>
 					<div id="btn-cpt" class="" onclick="highlightIcon(this);showDispatch(data_dispatched);"><i id="btn-cpt_i" class="fa fa-shopping-cart icon-def" style="color:#777;"><p class="icontitle">COMPLETED</p></i></div>
@@ -373,7 +373,7 @@ width:100%;
 			}
 		else if(p==101) // coming from saving allocation. need to update rawdata and stock
 			{	
-				data_stock = data;
+				data_stock = JSON.parse(JSON.stringify(data));
 				getRawOrder(160);
 			}
 		else if(p==160)
@@ -388,9 +388,12 @@ width:100%;
 		else if(p==110)
 			showDispatch(data_dispatched);
 		else if(p==170){
-			showDispatch(data);	
+			data_dispatched = data;
+			showDispatch(data_dispatched);	
 			getAllOrdr(data_raw);// update orders
-			}	
+		//	getStockData(171);
+			}
+			
 				
 	}
 	
@@ -403,12 +406,13 @@ width:100%;
 	}
 	
 	function getDispatchedOrder(p){
-		getData('','',"SELECT m.id,m.did,d.firmname,m.discussion,m.ordr, m.mdate, a.name from t_meeting_tbl m, t_dealer_tbl d, t_agent_tbl a where d.did = m.did and d.agentid = a.id and m.status=10 order by m.mdate desc LIMIT 20 ;",0,0,p);
+		getData('','',"SELECT m.id,m.did,d.firmname,m.discussion,m.ordr, m.mdate, a.name,  m.cnf_dt,m.rsvd_dt,m.dispatch_dt from t_meeting_tbl m, t_dealer_tbl d, t_agent_tbl a where d.did = m.did and d.agentid = a.id and m.status=10 order by m.mdate desc LIMIT 20 ;",0,0,p);
 	}
 	
 	function showRawOrder(data){
-    	
+    list_for_prsng = []; //everytime clean old list of selected items	
 	getAllOrdr(data);
+	document.getElementById("phead").innerHTML = "<b>Un-Processed Orders</b><i class='fa fa-save pull-right' onclick='toMfg();'></i>";
 	var chat = document.getElementById("chat");
 	var msg = "";
 	var flg =0;
@@ -462,6 +466,7 @@ width:100%;
 			msg += "</div></li>";
 		}
 		chat.innerHTML = msg;
+		
 	}
 	
 	// RAW --> CNF
@@ -477,6 +482,7 @@ width:100%;
 	
 	
 	function showCNFOrder(data){
+		initial_stock = {};  // clean any previous initial stock value
 		document.getElementById("phead").innerHTML = "<b>Under Processing</b><i class='fa fa-save pull-right' onclick='reserveIt();'></i>";
 	    var chat = document.getElementById("chat");
 		chat.innerHTML = "";
@@ -528,8 +534,15 @@ width:100%;
 	
 	var allocate = function() {
 		var id = this.getAttribute("id");
-		//document.getElementById(id)
-		allocateStock(id);
+		//if already selected remove selection
+		if(document.getElementById(id).value == 1){
+			document.getElementById(id).value = 0;
+			showCNFOrder(data_raw);
+		}	
+		else{	
+			allocateStock(id);
+			
+			}
 	};
 	
 	var success = 0 ;
@@ -548,16 +561,21 @@ width:100%;
 			// Temp display CNF screen with updated stock
 			// This stock is not conformed till allocation is saved.
 			// Stock will actually be saved and data_stock will be updated upon save only
+			
 		    var tmp = JSON.parse(JSON.stringify(data_stock));
 			data_stock = JSON.parse(JSON.stringify(initial_stock));
 			showCNFOrder(data_raw);
+			// retain value of initial stock
+			initial_stock = JSON.parse(JSON.stringify(data_stock));
 			data_stock = JSON.parse(JSON.stringify(tmp));
 					
 			document.getElementById("m_"+id).children[1].children[0].children[4].children[1].classList.remove("ordr");
 			document.getElementById("m_"+id).children[1].children[0].children[4].children[1].classList.add("markallocate");
 			document.getElementById("m_"+id).style.backgroundColor = "#ECF0F1";
+			document.getElementById(id).value = 1;
 		
 			allocate_id.push(id);
+			
 		}
 	}
 
@@ -871,12 +889,13 @@ function unReserveIt(id,opr){
 	req.onreadystatechange = function() {
 		if (req.readyState == 4 && req.status == 200) {
 			try {
-				// get fresh stock
-				setTimeout(getData('','',"Select * from t_item_tbl;",0,0,101), 500);
+				
 				// refresh under processing tally
 				if(opr == "RSV2DISP")
 					getDispatchedOrder(170);
-				
+				else
+					setTimeout(getData('','',"Select * from t_item_tbl;",0,0,101), 500); // get fresh stock
+							
 									
 			} catch (e) {			
 				console.log("Exception::-"+e.toString());
@@ -933,6 +952,7 @@ var chat = document.getElementById("chat");
 function dispatch(ele){
 	var id = ele.getAttribute('id').replace("dispatch_","");
 	unReserveIt(id,"RSV2DISP");
+	return false;
 }
 
 function showDispatch(data){
@@ -967,6 +987,7 @@ document.getElementById("phead").innerHTML = "<b>Dispatched Orders</b>";
 	document.getElementById("btn-rsvd_i").style.backgroundColor  = "#f5f5f5";
 	document.getElementById("btn-mfg_i").style.backgroundColor  = "#f5f5f5";
 	document.getElementById("btn-cpt_i").style.backgroundColor  = "#E4F1FE";
+	
 }
 
 function ordrHistory(id){
